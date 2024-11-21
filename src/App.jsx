@@ -1,5 +1,5 @@
 import './App.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import arrowDown from './assets/images/arrow-bar-down.svg';
 import arrowLeft from './assets/images/arrow-bar-left.svg';
 import arrowRight from './assets/images/arrow-bar-right.svg';
@@ -7,37 +7,60 @@ import arrowUp from './assets/images/arrow-bar-up.svg';
 import { formatDateTime, generateOptimized, generateOriginal, sortAndCount } from './functions';
 
 function App() {
+  const buttonRef = useRef([]);
   const [box, setBox] = useState(0);
-  const [inputValue, setInputValue] = useState([])
+  const [inputValue, setInputValue] = useState([]);
   const storedHistory = JSON.parse(localStorage.getItem('commandHistory'));
+  const [isFocused, setIsFocused] = useState(null);
+  const [activeButton, setActiveButton] = useState(null);
+  const arrowKeys = [
+    { name: "arrow Up", img: arrowUp, firstChar: "U" },
+    { name: "arrow Left", img: arrowLeft, firstChar: "L" },
+    { name: "arrow Right", img: arrowRight, firstChar: "R" },
+    { name: "arrow Down", img: arrowDown, firstChar: "D" },
+  ];
+
+  const greenIndexes = [15, 41, 28, 56, 73];
 
   const gridItems = Array.from({ length: 100 }, (_, index) => (
     <div
       id={`grid-item-${index}`}
       key={index}
-      className={`w-10 h-10 flex items-center justify-center text-sm border ${index === box ? 'bg-blue-400 text-white' : 'bg-gray-100 border-gray-300'}`}
+      className={`w-10 h-10 flex items-center justify-center text-sm border ${greenIndexes.includes(index) ? 'bg-green-400' : (index === box ? 'bg-transparent' : 'bg-gray-100 border-gray-300')}`}
     >
     </div>
-
   ));
 
   function handleChange(e) {
     setInputValue(sortAndCount(e.target.value));
   }
 
-  function handleDirection(direction) {
+  function handleDirection(direction, index) {
+    setIsFocused(index);
+    setActiveButton(index);
+
+    setTimeout(() => {
+      setActiveButton(null);
+    }, 200);
+
+    let newBox = box;
+
     switch (direction) {
       case 'U':
-        setBox((prevBox) => prevBox - 10);
+        newBox = box - 10;
+        if (newBox >= 0) setBox(newBox);
         break;
       case 'L':
-        setBox((prevBox) => prevBox - 1);
+        newBox = box - 1;
+        if (newBox % 10 !== 9 && newBox >= 0) setBox(newBox);
         break;
       case 'D':
-        setBox((prevBox) => prevBox + 10);
+        newBox = box + 10;
+        if (newBox < 100) setBox(newBox);
         break;
       case 'R':
-        setBox((prevBox) => prevBox + 1);
+        newBox = box + 1;
+        if (newBox % 10 !== 0 && newBox < 100) setBox(newBox);
         break;
       default:
         break;
@@ -47,62 +70,121 @@ function App() {
   function handleSubmit(e) {
     e.preventDefault();
     inputValue.forEach((value) => {
+      let newBox = box;
 
       switch (value[1]) {
         case 'U':
-          setBox((prevBox) => prevBox - 10 * Number(value[0]));
+          newBox = box - 10 * Number(value[0]);
+          if (newBox >= 0) setBox(newBox);
           break;
         case 'L':
-          setBox((prevBox) => prevBox - Number(value[0]));
+          newBox = box - Number(value[0]);
+          if (newBox % 10 !== 9 && newBox >= 0) setBox(newBox);
           break;
         case 'D':
-          setBox((prevBox) => prevBox + 10 * Number(value[0]));
+          newBox = box + 10 * Number(value[0]);
+          if (newBox < 100) setBox(newBox);
           break;
         case 'R':
-          setBox((prevBox) => prevBox + Number(value[0]));
+          newBox = box + Number(value[0]);
+          if (newBox % 10 !== 0 && newBox < 100) setBox(newBox);
           break;
         default:
           break;
       }
     });
-
-    handleHistory()
+    handleHistory();
   }
 
   function handleHistory() {
-    const commandHistory = [
-      {
-        original: generateOriginal(inputValue),
-        optimized: generateOptimized(inputValue),
-        timeStamp: formatDateTime()
-      },
-    ]
+    const existingHistory = JSON.parse(localStorage.getItem('commandHistory')) || [];
 
-    localStorage.setItem('commandHistory', JSON.stringify(commandHistory));
+    const newEntry = {
+      original: generateOriginal(inputValue),
+      optimized: generateOptimized(inputValue),
+      timeStamp: formatDateTime(),
+    };
+
+    existingHistory.push(newEntry);
+
+    localStorage.setItem('commandHistory', JSON.stringify(existingHistory));
   }
+
+  useEffect(() => {
+    const handleKeyPress = (event) => {
+      let direction = null;
+      let index = null;
+
+      switch (event.key) {
+        case "ArrowUp":
+          direction = "U";
+          index = 0;
+          break;
+        case "ArrowLeft":
+          direction = "L";
+          index = 1;
+          break;
+        case "ArrowDown":
+          direction = "D";
+          index = 3;
+          break;
+        case "ArrowRight":
+          direction = "R";
+          index = 2;
+          break;
+        default:
+          return;
+      }
+
+      handleDirection(direction, index);
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [box]);
 
   return (
     <div className="lg:container lg:mx-auto px-8 h-screen">
-      <h1 className="text-left mt-3 mb-3 text-4xl font-semibold">
-        Laboratory Manipulator Control
-      </h1>
+      <h1 className="text-left mt-3 mb-3 text-4xl font-semibold">Laboratory Manipulator Control</h1>
       <div className="flex justify-around">
         <div className="w-[700px] h-[650px] border border-gray-300 p-4 rounded-xl">
           <h2 className="font-semibold mb-3 text-3xl">Control Panel</h2>
-          <div className="grid grid-cols-10 gap-2">
+          <div className="grid grid-cols-10 gap-2 relative">
             {gridItems}
+            <div
+              className="absolute transition-all duration-300"
+              style={{
+                top: `${Math.floor(box / 10) * 3}rem`,
+                left: `${(box % 10) * 4.75}rem`,
+                width: '2.5rem',
+                height: '2.5rem',
+                backgroundColor: greenIndexes.includes(box) ? 'linear-gradient(to top left, #00FF00 50%, #0000FF 50%)' : '#0000FF',
+              }}
+            />
           </div>
           <div className="flex justify-between align-items-center mt-4">
             <div className="direction">
-              <button onClick={() => handleDirection("U")} className="item item-1"><img src={arrowUp} alt="arrow up" /></button>
-              <button onClick={() => handleDirection("L")} className="item item-2"><img src={arrowLeft} alt="arrow left" /></button>
-              <button onClick={() => handleDirection("D")} className="item item-4"><img src={arrowDown} alt="arrow down" /></button>
-              <button onClick={() => handleDirection("R")} className="item item-3"><img src={arrowRight} alt="arrow right" /></button>
+              {arrowKeys.map((key, index) => (
+                <button
+                  key={index}
+                  ref={(el) => (buttonRef.current[index] = el)}
+                  style={{
+                    backgroundColor: activeButton === index ? "black" : "#2f2f2f",
+                  }}
+                  className={`item item-${index + 1} ${isFocused === index ? "focus" : ""}`}
+                  onClick={() => handleDirection(key.firstChar, index)}
+                >
+                  <img src={key.img} alt={key.name} />
+                </button>
+              ))}
             </div>
             <form className="w-[70%]" onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="command" className="form-label font-semibold">Enter command</label>
-                <input onChange={handleChange} type="text" className="form-control" id="command" aria-describedby="emailHelp" placeholder='U, R, D, L' />
+                <input onChange={handleChange} type="text" className="form-control" id="command" placeholder='U, R, D, L' />
               </div>
               <button type="submit" className="btn btn bg-black text-white btn-lg">Execute Command</button>
             </form>
@@ -120,19 +202,17 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {
-                storedHistory ? (
-                  storedHistory.map((history, index) => (
-                    <tr key={index}>
-                      <th scope="row">{history?.original}</th>
-                      <td>{history?.optimized}</td>
-                      <td>{history?.timeStamp}</td>
-                    </tr>
-                  ))
-                ) : (
-                    <p>No history</p>
-                )
-              }
+              {storedHistory ? (
+                storedHistory.map((history, index) => (
+                  <tr key={index}>
+                    <th scope="row">{history?.original}</th>
+                    <td>{history?.optimized}</td>
+                    <td>{history?.timeStamp}</td>
+                  </tr>
+                ))
+              ) : (
+                <p>No history</p>
+              )}
             </tbody>
           </table>
         </div>

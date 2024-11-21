@@ -4,6 +4,8 @@ export function sortAndCount(input) {
     let result = [];
     let count = 1;
 
+    input = input.toUpperCase();
+
     for (let i = 0; i < input.length; i++) {
         if (input[i] === input[i + 1]) {
             count++;
@@ -18,19 +20,24 @@ export function sortAndCount(input) {
 
 export function generateOriginal(arr) {
     let result = '';
+
     arr.forEach(([count, char]) => {
         result += char.repeat(parseInt(count));
     });
+
     return result;
 }
 
 export function generateOptimized(arr) {
     let result = '';
+
     arr.forEach(([count, char]) => {
         result += `${count}${char}`;
     });
+
     return result;
 }
+
 
 export function formatDateTime() {
     const date = new Date();

@@ -8,7 +8,7 @@
 }
 
 .item {
-    background-color: rgb(47, 47, 47);
+    background-color: #2f2f2f;
     border-radius: 8px;
     margin-top: 4px;
     display: flex;
@@ -41,6 +41,22 @@
     grid-column: 2;
     grid-row: 3;
 }
+
+button {
+  transition: background-color 0.2s ease;
+}
+
+/* Smooth transition for the moving box */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+/* Add the custom size for the grid items if needed */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+}
+
 
 @keyframes move {
   from {
