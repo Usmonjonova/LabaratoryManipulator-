@@ -4,21 +4,39 @@ import arrowDown from './assets/images/arrow-bar-down.svg';
 import arrowLeft from './assets/images/arrow-bar-left.svg';
 import arrowRight from './assets/images/arrow-bar-right.svg';
 import arrowUp from './assets/images/arrow-bar-up.svg';
-import { formatDateTime, generateOptimized, generateOriginal, sortAndCount } from './functions';
+import { formatDateTime, generateOptimized, generateOriginal } from './functions';
+
+function sortAndCount(input) {
+  let result = [];
+  let count = 1;
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === input[i + 1]) {
+      count++;
+    } else {
+      result.push([count.toString(), input[i]]);
+      count = 1;
+    }
+  }
+  return result;
+}
 
 function App() {
   const buttonRef = useRef([]);
+  const inputRef = useRef(null);
   const [box, setBox] = useState(0);
-  const [inputValue, setInputValue] = useState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [formatedValue, setFormatedValue] = useState([])
   const storedHistory = JSON.parse(localStorage.getItem('commandHistory'));
   const [isFocused, setIsFocused] = useState(null);
   const [activeButton, setActiveButton] = useState(null);
+  const [shake, setShake] = useState(false);
   const arrowKeys = [
     { name: "arrow Up", img: arrowUp, firstChar: "U" },
     { name: "arrow Left", img: arrowLeft, firstChar: "L" },
     { name: "arrow Right", img: arrowRight, firstChar: "R" },
     { name: "arrow Down", img: arrowDown, firstChar: "D" },
   ];
+  const validCommands = /^[UDLR]+$/;
 
   const greenIndexes = [15, 41, 28, 56, 73];
 
@@ -32,8 +50,20 @@ function App() {
   ));
 
   function handleChange(e) {
-    setInputValue(sortAndCount(e.target.value));
+    const value = e.target.value.toUpperCase();
+    if (validCommands.test(value) || value === '') {
+      setInputValue(value);
+      setFormatedValue(sortAndCount(value))
+      console.log();
+
+    } else {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+    }
   }
+
+
+
 
   function handleDirection(direction, index) {
     setIsFocused(index);
@@ -69,30 +99,39 @@ function App() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    inputValue.forEach((value) => {
-      let newBox = box;
 
-      switch (value[1]) {
+    let commands = [...inputValue];
+    let currentBox = box;
+
+    function executeNextCommand() {
+      if (commands.length === 0) return;
+
+      const direction = commands.shift();
+      switch (direction) {
         case 'U':
-          newBox = box - 10 * Number(value[0]);
-          if (newBox >= 0) setBox(newBox);
+          currentBox -= 10;
+          if (currentBox >= 0) setBox(currentBox);
           break;
         case 'L':
-          newBox = box - Number(value[0]);
-          if (newBox % 10 !== 9 && newBox >= 0) setBox(newBox);
+          currentBox -= 1;
+          if (currentBox % 10 !== 9 && currentBox >= 0) setBox(currentBox);
           break;
         case 'D':
-          newBox = box + 10 * Number(value[0]);
-          if (newBox < 100) setBox(newBox);
+          currentBox += 10;
+          if (currentBox < 100) setBox(currentBox);
           break;
         case 'R':
-          newBox = box + Number(value[0]);
-          if (newBox % 10 !== 0 && newBox < 100) setBox(newBox);
+          currentBox += 1;
+          if (currentBox % 10 !== 0 && currentBox < 100) setBox(currentBox);
           break;
         default:
           break;
       }
-    });
+
+      setTimeout(executeNextCommand, 300);
+    }
+
+    executeNextCommand();
     handleHistory();
   }
 
@@ -100,13 +139,12 @@ function App() {
     const existingHistory = JSON.parse(localStorage.getItem('commandHistory')) || [];
 
     const newEntry = {
-      original: generateOriginal(inputValue),
-      optimized: generateOptimized(inputValue),
+      original: generateOriginal(formatedValue),
+      optimized: generateOptimized(formatedValue),
       timeStamp: formatDateTime(),
     };
 
     existingHistory.push(newEntry);
-
     localStorage.setItem('commandHistory', JSON.stringify(existingHistory));
   }
 
@@ -184,7 +222,15 @@ function App() {
             <form className="w-[70%]" onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label htmlFor="command" className="form-label font-semibold">Enter command</label>
-                <input onChange={handleChange} type="text" className="form-control" id="command" placeholder='U, R, D, L' />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  id="command"
+                  className={`form-control ${shake ? 'animate-shake' : ''}`} // Animatsiya klassi
+                  placeholder="U, R, D, L"
+                  value={inputValue}
+                  onChange={handleChange}
+                />
               </div>
               <button type="submit" className="btn btn bg-black text-white btn-lg">Execute Command</button>
             </form>
